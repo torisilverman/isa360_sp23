@@ -1,0 +1,162 @@
+// Tori Silverman, 02.14.23
+
+// Question 1: Display a list of countries that are available in the airbnb documents.
+
+db.listings.distinct("address.country")
+
+// Result:
+
+/* [
+  "Australia",
+  "Brazil",
+  "Canada",
+  "China",
+  "Hong Kong",
+  "Portugal",
+  "Spain",
+  "Turkey",
+  "United States"
+]
+*/ 
+
+// ------------------------------------------------------------------------------------------------------
+
+/* Question 2: Find all listings where number_of_reviews is over 400 and price is less than 100. 
+Display property listing url, name, number of reviews, price and host location. */
+
+db.listings.find(
+    {$and:[
+        {"number_of_reviews":{$gt:400}},
+        {"price":{$lt:100}}
+        ]},
+        {"listing_url":1, 
+        "name":1,
+        "number_of_reviews":1,
+        "price":1,
+        "host.host_location":1,
+        "_id":0}
+)
+
+// Result: (First Record Only)
+
+/*
+[
+  {
+    "listing_url": "https://www.airbnb.com/rooms/12954762",
+    "name": "Near Airport private room, 2 bedroom granny flat**",
+    "number_of_reviews": 469,
+    "price": {
+      "$numberDecimal": "60.00"
+    },
+    "host": {
+      "host_location": "New South Wales, Australia"
+    }
+]
+*/
+
+// ------------------------------------------------------------------------------------------------------
+
+/* Question 3: Find the total number of listings located in Hawaii (based on host.host_location).
+with review scores rating over 90. 
+display listing url, name, number of reviews, price and host location. */
+
+// To see actual records: 
+
+db.listings.find(
+    {$and:[
+        {"host.host_location":"Hawaii"},
+        {"review_scores.review_scores_rating":{$gt:90}}
+    ]},
+    {
+        "listing_url":1,
+        "name":1,
+        "number_of_reviews":1,
+        "price":1,
+        "host.host_location":1,
+        "_id":0
+    }
+)
+
+// Result (First Record Only):
+
+/*
+[
+  {
+    "listing_url": "https://www.airbnb.com/rooms/1915001",
+    "name": "Hawaii - West Oahu - 3-Bedroom Home",
+    "number_of_reviews": 122,
+    "price": {
+      "$numberDecimal": "168.00"
+    },
+    "host": {
+      "host_location": "Hawaii"
+    }
+  }
+]
+*/
+
+// For number of records:
+
+db.listings.countDocuments(
+    {$and:[
+        {"host.host_location":"Hawaii"},
+        {"review_scores.review_scores_rating":{$gt:90}}
+    ]},
+    {
+        "listing_url":1,
+        "name":1,
+        "number_of_reviews":1,
+        "price":1,
+        "host.host_location":1,
+        "_id":0
+    }
+)
+
+// Result:
+// 2
+
+// ------------------------------------------------------------------------------------------------------
+
+/* Question 4: Find all listings in Hawaii with waterfront and Kitchen, and 
+review score for both location and cleanliness is 10. Display listing url, name, amentities, reivew_scores, and host location. */
+
+db.listings.find(
+    {$and:[
+        {"host.host_location":"Hawaii"},
+        {"description": {"$regex": "waterfront", $options: "i"}},
+        {"description": {"$regex": "Kitchen", $options: "i"}},
+        {"review_scores.review_scores_cleanliness":{$eq:10}},
+        {"review_scores.review_scores_location":{$eq:10}}
+    ]}, 
+    {
+        "listing_url":1,
+        "name":1,
+        "amenities":1,
+        "review_scores":1,
+        "host.host_location":1,
+        "_id":0
+    }
+)
+// Result: [] (No records found.)
+
+// ------------------------------------------------------------------------------------------------------
+
+/* Question 5: List all types of property for the listings in Hong Kong. 
+Sort the list by property type in ascending order. */
+
+db.listings.find(
+    {"address.country":"Hong Kong"},
+    {"property_type":1,"_id":0}
+).sort({"property_type":1})
+
+// question: can you sort a distinct?
+//db.listings.distinct("property_type", {"address.country": "Hong Kong"})
+
+/* Result (First Record Only):
+[
+  {
+    "property_type": "Apartment"
+  },
+]
+/*
+
