@@ -1,0 +1,478 @@
+// Tori Silverman, 02.28.23
+
+/* MongoDB assignment 2: Data Aggregation. This exercise is based on airbnbListings collection
+Please complete the following five queries by due date. Submit the completed mongodb script file on canvas.
+For each question, please copy the result at the end. If there is multiple records, 
+you only need to copy the first three records.
+Below is an example.
+ */
+
+//1. display the three most frequent type of property listed with airbnb.
+
+const pipeline = [
+  {$group:{_id: "$property_type","numProps":{$sum:1}}},
+  {$sort:{"numProps": -1}},
+  {$limit:3}
+]
+
+db.listings.aggregate(pipeline)
+
+/* Result:
+[
+  {
+    "_id": "Apartment",
+    "numProps": 3626
+  },
+  {
+    "_id": "House",
+    "numProps": 606
+  },
+  {
+    "_id": "Condominium",
+    "numProps": 399
+  }
+]
+*/
+
+// ----------------------------------------------------------------------------------------
+
+/*2. Display the average price, highest price and lowest price of the property by country. 
+     Sort the result by average price in decending order.
+     format all three price as integer.
+*/
+
+const pipeline = [
+  {$group:{_id: "$address.country",
+  "numProps":{$sum:1},
+  "mostExpensive":{$max:"$price"},
+  "cheapest":{$min:"$price"},
+  "avgPrice":{$avg:"$price"}}},
+  {$sort:{"avgPrice":-1}},
+  {$project: {
+    "avgPrice1":{$round: ["$avgPrice",0]},
+    "highPrice1":{$round: ["$mostExpensive",0]},
+    "lowPrice1":{$round: ["$cheapest",0]},
+    }}
+]
+db.listings.aggregate(pipeline)
+
+/* Result (first three records):
+{
+    "_id": "Hong Kong",
+    "avgPrice1": {
+      "$numberDecimal": "774"
+    },
+    "highPrice1": {
+      "$numberDecimal": "11681"
+    },
+    "lowPrice1": {
+      "$numberDecimal": "79"
+    }
+  },
+  {
+    "_id": "Brazil",
+    "avgPrice1": {
+      "$numberDecimal": "525"
+    },
+    "highPrice1": {
+      "$numberDecimal": "11190"
+    },
+    "lowPrice1": {
+      "$numberDecimal": "30"
+    }
+  },
+  {
+    "_id": "China",
+    "avgPrice1": {
+      "$numberDecimal": "405"
+    },
+    "highPrice1": {
+      "$numberDecimal": "699"
+    },
+    "lowPrice1": {
+      "$numberDecimal": "86"
+    }
+  }
+*/
+
+// ----------------------------------------------------------------------------------------
+
+/* 3. For all listing in the United States, 
+Display top 10 cities (use address.street) that have the most expensive average price. 
+format average price with two decimal places*/
+
+const pipeline= [
+  {$match:{"address.country":"United States"}},
+  {$group:{_id:"$address.street",
+  "avgPrice":{$avg:"$price"}}},
+  {$sort:{"avgPrice":-1}},
+  {$project: {"avgPrice1":{$round: ["$avgPrice",2]}}},
+  {$limit:10}
+]
+
+db.listings.aggregate(pipeline)
+
+/* Result (first three records):
+{
+    "_id": "Waimanalo, HI, United States",
+    "avgPrice1": {
+      "$numberDecimal": "878.33"
+    }
+  },
+  {
+    "_id": "Hanalei, HI, United States",
+    "avgPrice1": {
+      "$numberDecimal": "650.50"
+    }
+  },
+  {
+    "_id": "Haena, HI, United States",
+    "avgPrice1": {
+      "$numberDecimal": "604.00"
+    }
+  }
+*/
+
+// ---------------------------------------------------------------------------------------------------
+
+/* 4. List top 10 property type based on number of listings. Display total listings, average 
+ number of reviews, and average price for each property type. Format average number of reviews as integer,
+and average price with 2 decimal places*/
+
+const pipeline = [
+{$group: {
+    _id: "$property_type",
+    "totalListings": {$sum:1},
+    "avgReviews":{$avg:"$number_of_reviews"},
+    "avgPrice":{$avg:"$price"} }},
+  {$sort:{"totalListings":-1}},
+  {$limit:10},
+  {$project:{"totalListings":1,
+  "avgReviews1":{$round: ["$avgReviews",0]},
+  "avgPrice1":{$round: ["$avgPrice",2]}}}
+]
+
+db.listings.aggregate(pipeline)
+
+/* Result (first three records):
+
+  {
+    "_id": "Apartment",
+    "totalListings": 3626,
+    "avgReviews1": 27,
+    "avgPrice1": {
+      "$numberDecimal": "255.39"
+    }
+  },
+  {
+    "_id": "House",
+    "totalListings": 606,
+    "avgReviews1": 29,
+    "avgPrice1": {
+      "$numberDecimal": "334.00"
+    }
+  },
+  {
+    "_id": "Condominium",
+    "totalListings": 399,
+    "avgReviews1": 28,
+    "avgPrice1": {
+      "$numberDecimal": "342.88"
+    }
+  }
+
+/*
+
+// --------------------------------------------------------------------------------
+
+/* 5. For apartment type in each country, what property is the most expensive? 
+Display average price in that country, listing url, name, summary, price, 
+and number of reviews of that property. */
+
+ const pipeline= [
+  {$match: {property_type: {$in: ["Apartment"]}}},
+  {$sort:{"price":-1}},
+  {$group:{_id:"$address.country",
+  "avgPrice":{$avg:"$price"},
+  "listingURL":{$first: "$listing_url"},
+  "name1":{$first:"$name"},
+  "price1":{$max:"$price"},
+  "summary1":{$first:"$summary"},
+  "price1":{$first:"$price"},
+  "number_of_reviews1":{$first:"$number_of_reviews"}}},
+  {$project: {
+  "avgPrice1":{$round: ["$avgPrice",2]},
+  "listingURL":1,
+  "name1":1,
+  "summary1":1,
+  "highPrice":{$round:["$price1",2]},
+  "number_of_reviews1":1
+  }}
+]
+
+db.listings.aggregate(pipeline)
+
+/* Result (first three records):
+[
+  {
+    "_id": "Brazil",
+    "listingURL": "https://www.airbnb.com/rooms/13997910",
+    "name1": "Apartamento de luxo em Copacabana - 4 quartos",
+    "summary1": "Meu espaço é bom para casais, viajantes de negócios e famílias (com crianças).",
+    "number_of_reviews1": 0,
+    "avgPrice1": {
+      "$numberDecimal": "485.77"
+    },
+    "highPrice": {
+      "$numberDecimal": "11190.00"
+    }
+  },
+  {
+    "_id": "Turkey",
+    "listingURL": "https://www.airbnb.com/rooms/20275354",
+    "name1": "İstanbul un kalbi sisli. Center of istanbul sisli",
+    "summary1": "We are new married couple.We have have one fully furnished single room for rent in our flat which is located in Sisli Bomonti. The room is fully furnished, recently painted and large enough for one person to live in comfortably. The flat is large (130 m2), recently painted, has a big balcony and fully furnished with 24/7 hot water, limitless wireless",
+    "number_of_reviews1": 0,
+    "avgPrice1": {
+      "$numberDecimal": "365.98"
+    },
+    "highPrice": {
+      "$numberDecimal": "48842.00"
+    }
+  },
+  {
+    "_id": "Hong Kong",
+    "listingURL": "https://www.airbnb.com/rooms/24972885",
+    "name1": "Large Luxury Hong Kong Island apartment",
+    "summary1": "Fully renovated building with beautiful pool, children's play area, library, squash and tennis court, snooker room, gym and children's games room. Situated in Pokfulam 15 mins by bus into Central. Easy access to taxis, buses outside the building. Walking distance to Kennedy Town MTR station. Booking periods accepted between 30-120 days.  Ideally suited to a family relocating to Hong Kong and seeking temporary accommodation or a HK based family inbetween leases or during a flat renovation.",
+    "number_of_reviews1": 1,
+    "avgPrice1": {
+      "$numberDecimal": "684.62"
+    },
+    "highPrice": {
+      "$numberDecimal": "3399.00"
+    }
+  }
+  /*
+
+// -------------------------------------------------------------------------------------
+
+  /* Bonus (5 points). List top 5 amenities for each property type. 
+  Display name and count for each of the top 5 amenities.
+  limit the result to top 3 property (based on total top 5 amenities count)
+   */
+
+// how do I get count for each element? count and total count...
+// This has some issues, I cannot get count or sort by frequency, but is closest I can get
+// I am not sure if the sort  works as well...
+  const pipeline= [
+  {$unwind:"$amenities"},
+  {$group:{_id:"$property_type",
+  //"num":{$sum:1},
+  "amens":{$push:{"topAmenities":"$amenities"}},
+  "count":{$sum:"$amens"}
+  //{$sum:"$amens"}
+  //"num":{$sum:"topAmenities"}
+  }},
+  {$sort:{"count":-1}},
+  {$project:{"top5":{$slice:["$amens",0,5]},
+  //"count":1,
+  //"amenEach":{$size:"$top5"},
+  "amenCount":{$size:"$amens"}
+  //"numAmen":{$sum:"$topAmenities"}
+  //"num":{$sum:1}
+  //"num":1
+  }},
+  //,
+{$sort:{"amenCount":-1}},
+{$limit:3}
+]
+db.listings.aggregate(pipeline)
+
+/*
+Result:
+{
+    "_id": "Apartment",
+    "top5": [
+      {
+        "topAmenities": "Wifi"
+      },
+      {
+        "topAmenities": "Wheelchair accessible"
+      },
+      {
+        "topAmenities": "Kitchen"
+      },
+      {
+        "topAmenities": "Free parking on premises"
+      },
+      {
+        "topAmenities": "Smoking allowed"
+      }
+    ],
+    "amenCount": 75124
+  },
+  {
+    "_id": "House",
+    "top5": [
+      {
+        "topAmenities": "TV"
+      },
+      {
+        "topAmenities": "Cable TV"
+      },
+      {
+        "topAmenities": "Wifi"
+      },
+      {
+        "topAmenities": "Kitchen"
+      },
+      {
+        "topAmenities": "Paid parking off premises"
+      }
+    ],
+    "amenCount": 14008
+  },
+  {
+    "_id": "Condominium",
+    "top5": [
+      {
+        "topAmenities": "TV"
+      },
+      {
+        "topAmenities": "Cable TV"
+      },
+      {
+        "topAmenities": "Wifi"
+      },
+      {
+        "topAmenities": "Air conditioning"
+      },
+      {
+        "topAmenities": "Pool"
+      }
+    ],
+    "amenCount": 10455 
+*/
+
+// how do I get the count of each element of the top 5?
+const pipeline= [
+  {$unwind:"$amenities"},
+  {$group:{_id:"$property_type",
+  "amens":{$push:"$amenities"},
+  "totalCount":{$sum:1}
+  //"top5Amens":{$slice: ["$amens", 0, 5]},
+  }},
+{$sort:{"totalCount":-1}},
+ {$project:{
+  "property_type":1,
+  "top5Amens":{$slice: ["$amens", 0, 5]},
+  "numEachAmen":{$sum:"$top5Amens"},
+  //"countAmen":{$sum:"$top5Amens"},
+  //"countAmen":{$size:"$amens"},
+  "totalCount":1
+ }},
+{$limit:3}
+]
+db.listings.aggregate(pipeline)
+
+/* here are a bunch of failed tries...
+
+const pipeline= [
+  {$unwind:"$amenities"},
+  {$group:{_id:"$amenities",
+  "prop_types":{$push: {"prop_types": "$property_type"}}}},
+  {$project:{"top5Props":{$slice: ["$property_type", 0, 5]},
+  "property_type":1}},
+  {$limit:3}
+]
+db.listings.aggregate(pipeline)
+  
+ // "bestAmenities":{$push} unwind and then push? definitely unwind
+
+const pipeline= [
+  {$unwind:"$amenities"},
+  {$group:{_id:"$amenities",
+  "count":{$sum:1},
+  "properties":{$push:"$property_type"}
+  }},
+  {$sort:{count:-1}},
+ {$project:{
+  "amenities":1,"properties":1,"count":1
+//"amens":"$amenities","count":1
+ }}
+]
+db.listings.aggregate(pipeline)
+
+// TEST
+
+const pipeline= [
+  {$unwind:"$amenities"},
+  {$group:{_id:"$property_type"}},
+  {$project:{"top5Amens":{$slice:["amenities",0,5]}}},//cannot slice what you undid silly
+  {$limit:3}
+]
+db.listings.aggregate(pipeline)
+
+// closest but not at all what the uh question was asking
+const pipeline= [
+  {$unwind:"$amenities"},
+  {$group:{_id:"$amenities",
+  "num":{$sum:1},
+  "props":{$push:{"property_type":"$property_type"}}}},
+  {$project:{"top5":{$slice:["$props",0,5]},
+  "num":1}},
+  {$sort:{"num":-1}}
+]
+db.listings.aggregate(pipeline)
+
+  //"avgPrice1":{$round: ["$avgPrice",2]},
+  //"highPrice":{$round:["$mostExpensive",2]},
+
+  const pipeline= [
+  {$unwind:"$amenities"},
+  {$group:{_id:"$property_type",
+  //"num":{$sum:1},
+  "amens":{$push:{"amenities":"$amenities"}}}},
+  {$project:{"top5":{$slice:["$amens",0,5]},
+  "num":1}},
+  {$sort:{"num":-1}}
+]
+db.listings.aggregate(pipeline)
+// this actually isn't bad but you need accumulator
+
+db.listings.distinct("property_type")
+
+const pipeline=[
+    {$unwind: "$amenities"}, 
+    {$group: {
+        _id:"$property_type", term: "$amenities"},  
+        "count": {$sum : 1}  
+    },
+    // build array
+    {$group: {
+        _id: "$property_type",  
+        term_tf: {$push:  { term: "$_id.term", tf: "$count" }}
+    }},
+    // write to new collection
+    {$out:"occurences"}     
+]
+db.listings.aggregate(pipeline)
+
+  const pipeline= [
+  {$unwind:"$amenities"},
+  {$group:{_id:"$property_type",
+  "amens":{$push:{"topAmenities":"$amenities"}}}},
+  {$group:{_id:"$amens","count":{$sum:1}}},
+  {$sort:{"count":-1}},
+  {$project:{"top5":{$slice:["$amens",0,5]},
+  "count":1
+  //"amenCount":{$size:"$amens"}
+  }},
+{$sort:{"amenCount":-1}},
+{$limit:3}
+]
+db.listings.aggregate(pipeline)
+*/
+
+
