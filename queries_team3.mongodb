@@ -1,0 +1,889 @@
+/*
+Team 3: David Bryce, Adam Dahill, Ryan Giammarco, Tori Silverman
+10 Plastic Waste MongoDB Queries
+3/9/2023
+*/
+
+// switch to tweet database
+use ("tweetsDB_v2")
+
+// find one
+db.plastic_waste.findOne()
+
+//find the top 10 locations users are tweeting from
+use ("tweetsDB_v2")
+
+const pipeline = [
+     {$match: {"author.location": {$ne: null}}},
+     {$group: {
+        "_id": "$author.location",
+        "numTweets": {$sum: 1}
+    }},
+    {$sort: {"numTweets":-1}},
+    {$limit:10},
+]
+
+db.plastic_waste.aggregate(pipeline)
+
+/*
+[
+  {
+    "_id": "New Delhi, India",
+    "numTweets": 128
+  },
+  {
+    "_id": "India",
+    "numTweets": 112
+  },
+  {
+    "_id": "United Kingdom",
+    "numTweets": 87
+  },
+  {
+    "_id": "Earth",
+    "numTweets": 61
+  },
+  {
+    "_id": "London",
+    "numTweets": 55
+  },
+  {
+    "_id": "UK",
+    "numTweets": 52
+  },
+  {
+    "_id": "London, England",
+    "numTweets": 45
+  },
+  {
+    "_id": "England, United Kingdom",
+    "numTweets": 39
+  },
+  {
+    "_id": "Lagos, Nigeria",
+    "numTweets": 39
+  },
+  {
+    "_id": "Canada",
+    "numTweets": 38
+  }
+]
+*/
+
+//count of tweets by weekday
+use ("tweetsDB_v2")
+
+const pipeline=[
+  {"$addFields": {"weekday": {"$dayOfWeek": {"$toDate": "$created_at"}}}},
+  {$group: {
+    _id: "$weekday",
+    count: {$sum:1}
+  }},
+  {$sort: {"_id": 1}},
+  {$project: {
+      "weekday": "$_id",
+      "count":1,
+      "_id": 0
+  }}
+]
+
+db.plastic_waste.aggregate(pipeline)
+
+/*
+[
+  {
+    "count": 1439,
+    "weekday": 1
+  },
+  {
+    "count": 1764,
+    "weekday": 2
+  },
+  {
+    "count": 954,
+    "weekday": 3
+  },
+  {
+    "count": 1813,
+    "weekday": 4
+  },
+  {
+    "count": 1789,
+    "weekday": 5
+  },
+  {
+    "count": 377,
+    "weekday": 7
+  }
+]
+*/
+
+//find top 10 organizations mentioned in tweets
+use ("tweetsDB_v2")
+
+const pipeline =[
+    {$unwind: "$entities.annotations"},
+    {$addFields: {"type": {$toLower: "$entities.annotations.type"}}},
+    {$addFields: {"normalized_text": {$toLower: "$entities.annotations.normalized_text"}}},
+    {$group: {
+        _id: {"type": "$type"},
+        "entity_list": {$push:"$normalized_text"}
+    }},
+    {$match: {"_id.type": "organization"}},
+    {$unwind: "$entity_list"},
+    {$group:{
+        "_id":"$entity_list",
+        "frequency": {$sum:1}
+    }},
+    {$sort: {"frequency":-1}},
+    {$limit:10}
+]
+db.plastic_waste.aggregate(pipeline)
+
+/*
+[
+  {
+    "_id": "gurugram",
+    "frequency": 33
+  },
+  {
+    "_id": "amazon",
+    "frequency": 25
+  },
+  {
+    "_id": "aasuclimatemarch",
+    "frequency": 23
+  },
+  {
+    "_id": "scotland",
+    "frequency": 17
+  },
+  {
+    "_id": "epa",
+    "frequency": 16
+  },
+  {
+    "_id": "ellen macarthur foundation",
+    "frequency": 9
+  },
+  {
+    "_id": "rspca",
+    "frequency": 8
+  },
+  {
+    "_id": "costa coffee",
+    "frequency": 7
+  },
+  {
+    "_id": "iec",
+    "frequency": 7
+  },
+  {
+    "_id": "dow",
+    "frequency": 6
+  }
+]
+*/
+
+//find the top 10 users by number of tweets
+use ("tweetsDB_v2")
+
+const pipeline=[
+  {$group: {
+    "_id": "$author.username",
+    "NumTweets": {$sum: 1}
+  }},
+  {$sort: {"NumTweets": -1}},
+  {$limit: 10}
+]
+
+db.plastic_waste.aggregate(pipeline)
+
+/*
+[
+  {
+    "_id": "OtisTheOracle",
+    "NumTweets": 32
+  },
+  {
+    "_id": "agoodthing_uk",
+    "NumTweets": 32
+  },
+  {
+    "_id": "PlasticWasteBot",
+    "NumTweets": 25
+  },
+  {
+    "_id": "Plasticsimpact",
+    "NumTweets": 19
+  },
+  {
+    "_id": "harishkumarsdmc",
+    "NumTweets": 18
+  },
+  {
+    "_id": "allen_tanya",
+    "NumTweets": 12
+  },
+  {
+    "_id": "PuffaJones",
+    "NumTweets": 12
+  },
+  {
+    "_id": "hikaru710_bot",
+    "NumTweets": 12
+  },
+  {
+    "_id": "PlasticEveryday",
+    "NumTweets": 11
+  },
+  {
+    "_id": "sawanshagajend1",
+    "NumTweets": 10
+  }
+]
+*/
+
+//find the 10 users with the most followers 
+use("tweetsDB_v2")
+const pipeline =[
+  {$group: {
+    "_id": "$author.username",
+    "user_info":{$push:{"followers_count":"$author.public_metrics.followers_count"}},
+    "NumTweets": {$sum: 1}
+  }
+  },
+  {$sort: {"user_info.followers_count": -1}},
+  {$limit: 10},
+  {$project: {
+    "user_name": "$_id",
+    "followers_count": {$max: "$user_info.followers_count"},
+    "NumTweets": 1
+  }}
+]
+
+db.plastic_waste.aggregate(pipeline)
+
+/*
+[
+  {
+    "_id": "aajtak",
+    "NumTweets": 1,
+    "user_name": "aajtak",
+    "followers_count": 19783420
+  },
+  {
+    "_id": "timesofindia",
+    "NumTweets": 1,
+    "user_name": "timesofindia",
+    "followers_count": 14684138
+  },
+  {
+    "_id": "CGTNOfficial",
+    "NumTweets": 1,
+    "user_name": "CGTNOfficial",
+    "followers_count": 13110906
+  },
+  {
+    "_id": "mashable",
+    "NumTweets": 1,
+    "user_name": "mashable",
+    "followers_count": 9300615
+  },
+  {
+    "_id": "ANI",
+    "NumTweets": 2,
+    "user_name": "ANI",
+    "followers_count": 7578995
+  },
+  {
+    "_id": "CNNnews18",
+    "NumTweets": 1,
+    "user_name": "CNNnews18",
+    "followers_count": 4746023
+  },
+  {
+    "_id": "susipudjiastuti",
+    "NumTweets": 1,
+    "user_name": "susipudjiastuti",
+    "followers_count": 3421439
+  },
+  {
+    "_id": "dna",
+    "NumTweets": 2,
+    "user_name": "dna",
+    "followers_count": 2299925
+  },
+  {
+    "_id": "abplive",
+    "NumTweets": 1,
+    "user_name": "abplive",
+    "followers_count": 2095862
+  },
+  {
+    "_id": "Greenpeace",
+    "NumTweets": 1,
+    "user_name": "Greenpeace",
+    "followers_count": 1902107
+  }
+]
+*/
+
+//10 most frequently mentioned people
+use("tweetsDB_v2")
+const pipeline =[
+    {$unwind: "$entities.annotations"},
+    {$addFields: {"type": {$toLower: "$entities.annotations.type"}}},
+    {$addFields: {"normalized_text": {$toLower: "$entities.annotations.normalized_text"}}},
+    {$group: {
+        _id: {"type": "$type"},
+        "entity_list": {$push:"$normalized_text"}
+    }},
+    {$match: {"_id.type": "person"}},
+    {$unwind: "$entity_list"},
+    {$group:{
+        "_id":"$entity_list",
+        "frequency": {$sum:1}
+    }},
+    {$sort: {"frequency":-1}},
+    {$limit:10}
+]
+db.plastic_waste.aggregate(pipeline)
+
+/*
+[
+  {
+    "_id": "yediyurappa",
+    "frequency": 83
+  },
+  {
+    "_id": "biden",
+    "frequency": 14
+  },
+  {
+    "_id": "mani vajipey",
+    "frequency": 11
+  },
+  {
+    "_id": "raj madangopal",
+    "frequency": 11
+  },
+  {
+    "_id": "james kateeba",
+    "frequency": 10
+  },
+  {
+    "_id": "kanika ahuja",
+    "frequency": 10
+  },
+  {
+    "_id": "vijaya khanduri",
+    "frequency": 9
+  },
+  {
+    "_id": "carlos monreal",
+    "frequency": 8
+  },
+  {
+    "_id": "mikehudema",
+    "frequency": 7
+  },
+  {
+    "_id": "babita gupta",
+    "frequency": 6
+  }
+]
+*/
+
+//10 most frequently mentioned products
+use("tweetsDB_v2")
+const pipeline =[
+    {$unwind: "$entities.annotations"},
+    {$addFields: {"type": {$toLower: "$entities.annotations.type"}}},
+    {$addFields: {"normalized_text": {$toLower: "$entities.annotations.normalized_text"}}},
+    {$group: {
+        _id: {"type": "$type"},
+        "entity_list": {$push:"$normalized_text"}
+    }},
+    {$match: {"_id.type": "product"}},
+    {$unwind: "$entity_list"},
+    {$group:{
+        "_id":"$entity_list",
+        "frequency": {$sum:1}
+    }},
+    {$sort: {"frequency":-1}},
+    {$limit:10}
+]
+db.plastic_waste.aggregate(pipeline)
+
+/*
+[
+  {
+    "_id": "googlepixel",
+    "frequency": 1
+  },
+  {
+    "_id": "iphone",
+    "frequency": 1
+  },
+  {
+    "_id": "icloud",
+    "frequency": 1
+  },
+  {
+    "_id": "oneplus",
+    "frequency": 1
+  },
+  {
+    "_id": "iphone14plus",
+    "frequency": 1
+  },
+  {
+    "_id": "laptop",
+    "frequency": 1
+  },
+  {
+    "_id": "usedphone",
+    "frequency": 1
+  },
+  {
+    "_id": "iphones",
+    "frequency": 1
+  },
+  {
+    "_id": "ps5",
+    "frequency": 1
+  }
+]
+*/
+
+//10 most frequently mentioned locations
+use("tweetsDB_v2")
+const pipeline =[
+    {$unwind: "$entities.annotations"},
+    {$addFields: {"type": {$toLower: "$entities.annotations.type"}}},
+    {$addFields: {"normalized_text": {$toLower: "$entities.annotations.normalized_text"}}},
+    {$group: {
+        _id: {"type": "$type"},
+        "entity_list": {$push:"$normalized_text"}
+    }},
+    {$match: {"_id.type": "place"}},
+    {$unwind: "$entity_list"},
+    {$group:{
+        "_id":"$entity_list",
+        "frequency": {$sum:1}
+    }},
+    {$sort: {"frequency":-1}},
+    {$limit:10}
+]
+db.plastic_waste.aggregate(pipeline)
+
+/*
+[
+  {
+    "_id": "uk",
+    "frequency": 875
+  },
+  {
+    "_id": "nigeria",
+    "frequency": 135
+  },
+  {
+    "_id": "karnataka",
+    "frequency": 117
+  },
+  {
+    "_id": "kalaburagi",
+    "frequency": 99
+  },
+  {
+    "_id": "usa",
+    "frequency": 63
+  },
+  {
+    "_id": "india",
+    "frequency": 40
+  },
+  {
+    "_id": "indiana",
+    "frequency": 38
+  },
+  {
+    "_id": "minnesota department of natural resources conservation",
+    "frequency": 28
+  },
+  {
+    "_id": "canada",
+    "frequency": 26
+  },
+  {
+    "_id": "ladakh",
+    "frequency": 25
+  }
+]
+*/
+
+//top 10 hashtags
+use("tweetsDB_v2")
+const pipeline =[
+    {$unwind: "$entities.hashtags"},
+    {$addFields: {"hashtags": {$toLower: "$entities.hashtags.tag"}}},
+    {$match: {"hashtags": {$nin: ["plasticwaste", "zerowaste", "recycle"]}}},
+    {$group: {
+        _id: {"hashtag": "$hashtags"},
+        "frequency": {$sum:1}
+    }},
+    {$sort: {"frequency":-1}},
+    {$limit:10},
+    {$project: {
+      "hashtag": "$_id.hashtag",
+      "frequency": 1,
+      "_id" : 0
+    }}
+]
+
+/*
+[
+  {
+    "frequency": 800,
+    "hashtag": "chooseloose"
+  },
+  {
+    "frequency": 222,
+    "hashtag": "recycling"
+  },
+  {
+    "frequency": 196,
+    "hashtag": "environment"
+  },
+  {
+    "frequency": 183,
+    "hashtag": "watch"
+  },
+  {
+    "frequency": 162,
+    "hashtag": "plastic"
+  },
+  {
+    "frequency": 141,
+    "hashtag": "sustainability"
+  },
+  {
+    "frequency": 137,
+    "hashtag": "reuse"
+  },
+  {
+    "frequency": 120,
+    "hashtag": "climatechange"
+  },
+  {
+    "frequency": 110,
+    "hashtag": "plasticfree"
+  },
+  {
+    "frequency": 108,
+    "hashtag": "savetheplanet"
+  }
+]
+*/
+
+db.plastic_waste.aggregate(pipeline)
+
+//top ten hashtags by weekday
+use("tweetsDB_v2")
+const pipeline=[
+    {"$addFields": {"weekday": {"$dayOfWeek": {"$toDate": "$created_at"}}}},
+    {$unwind: "$entities.hashtags"},
+    {$addFields: {"hashtags": {$toLower: "$entities.hashtags.tag"}}},
+    {$match: {"hashtags": {$nin: ["plasticwaste", "zerowaste", "recycle"]}}},
+    {"$group": {
+        "_id": {"weekday": "$weekday", "hashtag":"$hashtags"},
+        "frequency": {"$sum":1}
+    }},
+    {"$sort": {"frequency":-1}},
+    {"$group":{
+        "_id": "$_id.weekday",
+        "hashtags": {"$push": {"hashtag": "$_id.hashtag", "frequency": "$frequency"}}
+    }},
+    {"$sort": {"_id":1}},
+    {"$project":{
+        "top10Hashtags": {"$slice":["$hashtags", 0, 10]}
+    }},
+    ]
+
+db.plastic_waste.aggregate(pipeline)
+
+/*
+[
+  {
+    "_id": 1,
+    "top10Hashtags": [
+      {
+        "hashtag": "recycling",
+        "frequency": 73
+      },
+      {
+        "hashtag": "chooseloose",
+        "frequency": 57
+      },
+      {
+        "hashtag": "pathaan",
+        "frequency": 53
+      },
+      {
+        "hashtag": "jeevikadidi",
+        "frequency": 38
+      },
+      {
+        "hashtag": "plastic",
+        "frequency": 35
+      },
+      {
+        "hashtag": "environment",
+        "frequency": 29
+      },
+      {
+        "hashtag": "reuse",
+        "frequency": 29
+      },
+      {
+        "hashtag": "sustainability",
+        "frequency": 24
+      },
+      {
+        "hashtag": "plasticpollution",
+        "frequency": 22
+      },
+      {
+        "hashtag": "awwa",
+        "frequency": 20
+      }
+    ]
+  },
+  {
+    "_id": 2,
+    "top10Hashtags": [
+      {
+        "hashtag": "watch",
+        "frequency": 175
+      },
+      {
+        "hashtag": "environment",
+        "frequency": 72
+      },
+      {
+        "hashtag": "recycling",
+        "frequency": 69
+      },
+      {
+        "hashtag": "karnataka",
+        "frequency": 54
+      },
+      {
+        "hashtag": "kalaburagi",
+        "frequency": 52
+      },
+      {
+        "hashtag": "bsyediyurappa",
+        "frequency": 48
+      },
+      {
+        "hashtag": "pathaan",
+        "frequency": 43
+      },
+      {
+        "hashtag": "plasticfree",
+        "frequency": 43
+      },
+      {
+        "hashtag": "climatechange",
+        "frequency": 41
+      },
+      {
+        "hashtag": "reuse",
+        "frequency": 39
+      }
+    ]
+  },
+  {
+    "_id": 3,
+    "top10Hashtags": [
+      {
+        "hashtag": "environment",
+        "frequency": 39
+      },
+      {
+        "hashtag": "reuse",
+        "frequency": 32
+      },
+      {
+        "hashtag": "savetheplanet",
+        "frequency": 29
+      },
+      {
+        "hashtag": "plasticfree",
+        "frequency": 27
+      },
+      {
+        "hashtag": "climatechange",
+        "frequency": 26
+      },
+      {
+        "hashtag": "savetheearth",
+        "frequency": 25
+      },
+      {
+        "hashtag": "saveearthmission",
+        "frequency": 23
+      },
+      {
+        "hashtag": "sustainability",
+        "frequency": 22
+      },
+      {
+        "hashtag": "gogreen",
+        "frequency": 21
+      },
+      {
+        "hashtag": "recycling",
+        "frequency": 20
+      }
+    ]
+  },
+  {
+    "_id": 4,
+    "top10Hashtags": [
+      {
+        "hashtag": "chooseloose",
+        "frequency": 544
+      },
+      {
+        "hashtag": "plastic",
+        "frequency": 39
+      },
+      {
+        "hashtag": "turningtidesforgood",
+        "frequency": 26
+      },
+      {
+        "hashtag": "waste",
+        "frequency": 23
+      },
+      {
+        "hashtag": "sustainability",
+        "frequency": 19
+      },
+      {
+        "hashtag": "reuse",
+        "frequency": 16
+      },
+      {
+        "hashtag": "recycling",
+        "frequency": 15
+      },
+      {
+        "hashtag": "climatechange",
+        "frequency": 14
+      },
+      {
+        "hashtag": "pollution",
+        "frequency": 12
+      },
+      {
+        "hashtag": "environment",
+        "frequency": 12
+      }
+    ]
+  },
+  {
+    "_id": 5,
+    "top10Hashtags": [
+      {
+        "hashtag": "chooseloose",
+        "frequency": 178
+      },
+      {
+        "hashtag": "sustainability",
+        "frequency": 36
+      },
+      {
+        "hashtag": "environment",
+        "frequency": 33
+      },
+      {
+        "hashtag": "circulareconomy",
+        "frequency": 32
+      },
+      {
+        "hashtag": "plastic",
+        "frequency": 31
+      },
+      {
+        "hashtag": "recycling",
+        "frequency": 29
+      },
+      {
+        "hashtag": "waste",
+        "frequency": 29
+      },
+      {
+        "hashtag": "plasticpollution",
+        "frequency": 25
+      },
+      {
+        "hashtag": "reuse",
+        "frequency": 19
+      },
+      {
+        "hashtag": "ecofriendly",
+        "frequency": 16
+      }
+    ]
+  },
+  {
+    "_id": 7,
+    "top10Hashtags": [
+      {
+        "hashtag": "recycling",
+        "frequency": 16
+      },
+      {
+        "hashtag": "environment",
+        "frequency": 11
+      },
+      {
+        "hashtag": "plastic",
+        "frequency": 10
+      },
+      {
+        "hashtag": "plasticpollution",
+        "frequency": 9
+      },
+      {
+        "hashtag": "freebikes4kids",
+        "frequency": 8
+      },
+      {
+        "hashtag": "pathaan",
+        "frequency": 8
+      },
+      {
+        "hashtag": "climatechange",
+        "frequency": 6
+      },
+      {
+        "hashtag": "climatecrisis",
+        "frequency": 5
+      },
+      {
+        "hashtag": "savetheplanet",
+        "frequency": 5
+      },
+      {
+        "hashtag": "charity",
+        "frequency": 5
+      }
+    ]
+  }
+]
+*/
